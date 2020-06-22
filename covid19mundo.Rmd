@@ -1,0 +1,481 @@
+---
+output:
+   flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    theme: lumen
+# runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
+library(flexdashboard)
+library(ggplot2)
+library(plotly)
+library(shiny)
+library(zoo)
+#library(lubridate)
+library(stats)
+
+covid19mundo <- read.csv2('resultado/covid19mundo.csv', sep = ',', dec = '.')
+
+covid19mundo$date <- as.Date(covid19mundo$date, format = "%Y-%m-%d")
+
+covid19mundo <- covid19mundo %>% group_by(location) %>%
+  mutate(casosMM7 = round(rollmean(x = new_cases, 7, align = "right", fill = NA),2))
+
+covid19mundo$casosMM7 <- covid19mundo$casosMM7 %>% replace(is.na(.), 0)
+
+italia <- covid19mundo %>% filter(location == 'Italy')
+
+italia <- italia %>% mutate(cMM7Tx = casosMM7 / lag(casosMM7, order_by = date))
+
+tagIn <- italia %>% filter(casosMM7 >=1) %>% filter(date == min(date))
+tagFin <- italia %>% filter(casosMM7 == max(casosMM7))
+tagDias <- tagFin$date - tagIn$date
+tagDiasUp <- max(italia$date) - tagFin$date
+tagMaxMin <- tagFin$casosMM7 - tagIn$casosMM7
+tagVar <- tagMaxMin / as.integer(tagDias)
+
+italia$ctrl1 <- ifelse(italia$date <= tagFin$date, italia$casosMM7, 1)
+
+j <- tagMaxMin
+i <- 1
+ctrl2 <- c()
+while (i <= as.integer(tagDiasUp)+1) {
+  if(j >= tagVar){
+  ctrl2[i] = j - tagVar 
+  j = j - tagVar}
+  else
+  {
+  ctrl2[i] = 1
+  }
+i = i + 1
+}
+
+italia$ctrl <- ifelse(italia$ctrl1 != 1, italia$ctrl1, as.integer(ctrl2))
+```
+
+Row
+-------------------------------------
+
+### Comparacao - Casos com e sem novas ondas
+
+```{r}
+
+plotly::plot_ly(data = italia) %>%
+  add_trace(
+    x = ~date,
+    y = ~casosMM7,
+    type = 'bar', mode = 'lines',
+    name = "Casos"
+   )  %>%
+  add_trace(
+    x = ~date,
+    y = ~ctrl,
+    type = 'bar', mode = 'lines',
+    name = "Casos - sem novas ondas"
+   )  %>%
+  plotly::layout(
+    title = 'Italia', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Casos e Obitos por Teste
+
+```{r}
+
+plotly::plot_ly(data = italia) %>%
+  add_trace(
+    x = ~date,
+    y = ~total_cases/total_tests,
+    type = 'bar', mode = 'lines',
+    name = "Casos por Teste"
+   )  %>%
+  add_trace(
+    x = ~date,
+    y = ~total_deaths/total_tests,
+    type = 'bar', mode = 'lines',
+    name = "Obitos por Teste"
+   )  %>%
+  plotly::layout(
+    title = 'Italia', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Letalidade
+
+```{r}
+
+plotly::plot_ly(data = italia) %>%
+  add_trace(
+    x = ~date,
+    y = ~total_cases/total_deaths,
+    type = 'bar', mode = 'lines',
+    name = "Casos por Teste"
+   ) %>%
+  plotly::layout(
+    title = 'Italia', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Comparacao - Casos com e sem novas ondas
+
+```{r}
+
+uk <- covid19mundo %>% filter(location == 'United Kingdom')
+
+uk <- uk %>% mutate(cMM7Tx = casosMM7 / lag(casosMM7, order_by = date))
+
+tagIn <- uk %>% filter(casosMM7 >=1) %>% filter(date == min(date))
+tagFin <- uk %>% filter(casosMM7 == max(casosMM7))
+tagDias <- tagFin$date - tagIn$date
+tagDiasUp <- max(uk$date) - tagFin$date
+tagMaxMin <- tagFin$casosMM7 - tagIn$casosMM7
+tagVar <- tagMaxMin / as.integer(tagDias)
+
+ctrl1 <- ifelse(uk$date <= tagFin$date, uk$casosMM7, 1)
+
+j <- tagMaxMin
+i <- 1
+ctrl2 <- c()
+while (i <= as.integer(tagDiasUp)) {
+  if(j >= tagVar){
+  ctrl2[i] = j - tagVar 
+  j = j - tagVar}
+  else
+  {
+  ctrl2[i] = 1
+  }
+i = i + 1
+}
+
+i = which(ctrl1==max(ctrl1)) + 1
+j = 1
+while(i <= length(ctrl1)) {
+  ctrl1[i] = ctrl2[j]
+  i = i + 1
+  j = j +1
+}
+
+uk$ctrl <- ctrl1
+
+plotly::plot_ly(data = uk) %>%
+  add_trace(
+    x = ~date,
+    y = ~casosMM7,
+    type = 'bar', mode = 'lines',
+    name = "Casos"
+   )   %>%
+  add_trace(
+    x = ~date,
+    y = ~ctrl,
+    type = 'bar', mode = 'lines',
+    name = "Casos - sem novas ondas"
+   ) %>%
+  plotly::layout(
+    title = 'UK', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Casos e Obitos por Teste
+
+```{r}
+
+plotly::plot_ly(data = uk) %>%
+  add_trace(
+    x = ~date,
+    y = ~total_cases/total_tests,
+    type = 'bar', mode = 'lines',
+    name = "Casos por Teste"
+   )  %>%
+  add_trace(
+    x = ~date,
+    y = ~total_deaths/total_tests,
+    type = 'bar', mode = 'lines',
+    name = "Obitos por Teste"
+   )  %>%
+  plotly::layout(
+    title = 'UK', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Letalidade
+
+```{r}
+
+plotly::plot_ly(data = uk) %>%
+  add_trace(
+    x = ~date,
+    y = ~total_cases/total_deaths,
+    type = 'bar', mode = 'lines',
+    name = "Casos por Teste"
+   ) %>%
+  plotly::layout(
+    title = 'UK', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Comparacao - Casos com e sem novas ondas
+
+```{r}
+
+espanha <- covid19mundo %>% filter(location == 'Spain')
+
+espanha <- espanha %>% mutate(cMM7Tx = casosMM7 / lag(casosMM7, order_by = date))
+
+tagIn <- espanha %>% filter(casosMM7 >=1) %>% filter(date == min(date))
+tagFin <- espanha %>% filter(casosMM7 == max(casosMM7))
+tagDias <- tagFin$date - tagIn$date
+tagDiasUp <- max(espanha$date) - tagFin$date
+tagMaxMin <- tagFin$casosMM7 - tagIn$casosMM7
+tagVar <- tagMaxMin / as.integer(tagDias)
+
+ctrl1 <- ifelse(espanha$date <= tagFin$date, espanha$casosMM7, 1)
+
+j <- tagMaxMin
+i <- 1
+ctrl2 <- c()
+while (i <= as.integer(tagDiasUp)) {
+  if(j >= tagVar){
+  ctrl2[i] = j - tagVar 
+  j = j - tagVar}
+  else
+  {
+  ctrl2[i] = 1
+  }
+i = i + 1
+}
+
+i = which(ctrl1==max(ctrl1)) + 1
+j = 1
+while(i <= length(ctrl1)) {
+  ctrl1[i] = ctrl2[j]
+  i = i + 1
+  j = j +1
+}
+
+espanha$ctrl <- ctrl1
+
+plotly::plot_ly(data = espanha) %>%
+  add_trace(
+    x = ~date,
+    y = ~casosMM7,
+    type = 'bar', mode = 'lines',
+    name = "Casos"
+   )   %>%
+  add_trace(
+    x = ~date,
+    y = ~ctrl,
+    type = 'bar', mode = 'lines',
+    name = "Casos - sem novas ondas"
+   ) %>%
+  plotly::layout(
+    title = 'Espanha', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Casos e Obitos por Teste
+
+```{r}
+
+plotly::plot_ly(data = espanha) %>%
+  add_trace(
+    x = ~date,
+    y = ~total_cases/total_tests,
+    type = 'bar', mode = 'lines',
+    name = "Casos por Teste"
+   )  %>%
+  add_trace(
+    x = ~date,
+    y = ~total_deaths/total_tests,
+    type = 'bar', mode = 'lines',
+    name = "Obitos por Teste"
+   )  %>%
+  plotly::layout(
+    title = 'Espanha', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Letalidade
+
+```{r}
+
+plotly::plot_ly(data = espanha) %>%
+  add_trace(
+    x = ~date,
+    y = ~total_cases/total_deaths,
+    type = 'bar', mode = 'lines',
+    name = "Casos por Teste"
+   ) %>%
+  plotly::layout(
+    title = 'Espanha', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Comparacao - Casos com e sem novas ondas
+
+```{r}
+
+belgica <- covid19mundo %>% filter(location == 'Belgium')
+
+belgica <- belgica %>% mutate(cMM7Tx = casosMM7 / lag(casosMM7, order_by = date))
+
+tagIn <- belgica %>% filter(casosMM7 >=1) %>% filter(date == min(date))
+tagFin <- belgica %>% filter(casosMM7 == max(casosMM7))
+tagDias <- tagFin$date - tagIn$date
+tagDiasUp <- max(belgica$date) - tagFin$date
+tagMaxMin <- tagFin$casosMM7 - tagIn$casosMM7
+tagVar <- tagMaxMin / as.integer(tagDias)
+
+ctrl1 <- ifelse(belgica$date <= tagFin$date, belgica$casosMM7, 1)
+
+j <- tagMaxMin
+i <- 1
+ctrl2 <- c()
+while (i <= as.integer(tagDiasUp)) {
+  if(j >= tagVar){
+  ctrl2[i] = j - tagVar 
+  j = j - tagVar}
+  else
+  {
+  ctrl2[i] = 1
+  }
+i = i + 1
+}
+
+i = which(ctrl1==max(ctrl1)) + 1
+j = 1
+while(i <= length(ctrl1)) {
+  ctrl1[i] = ctrl2[j]
+  i = i + 1
+  j = j +1
+}
+
+belgica$ctrl <- ctrl1
+
+plotly::plot_ly(data = belgica) %>%
+  add_trace(
+    x = ~date,
+    y = ~casosMM7,
+    type = 'bar', mode = 'lines',
+    name = "Casos"
+   )   %>%
+  add_trace(
+    x = ~date,
+    y = ~ctrl,
+    type = 'bar', mode = 'lines',
+    name = "Casos - sem novas ondas"
+   ) %>%
+  plotly::layout(
+    title = 'Bélgica', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Casos e Obitos por Teste
+
+```{r}
+
+plotly::plot_ly(data = belgica) %>%
+  add_trace(
+    x = ~date,
+    y = ~total_cases/total_tests,
+    type = 'bar', mode = 'lines',
+    name = "Casos por Teste"
+   )  %>%
+  add_trace(
+    x = ~date,
+    y = ~total_deaths/total_tests,
+    type = 'bar', mode = 'lines',
+    name = "Obitos por Teste"
+   )  %>%
+  plotly::layout(
+    title = 'Bélgica', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
+
+Row
+-------------------------------------
+
+### Letalidade
+
+```{r}
+
+plotly::plot_ly(data = belgica) %>%
+  add_trace(
+    x = ~date,
+    y = ~total_cases/total_deaths,
+    type = 'bar', mode = 'lines',
+    name = "Casos por Teste"
+   ) %>%
+  plotly::layout(
+    title = 'Bélgica', 
+    yaxis = list(title = ""),
+    xaxis = list(title = ""),
+    hovermode = "compare"
+  )
+```
