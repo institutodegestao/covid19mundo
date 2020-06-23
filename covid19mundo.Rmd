@@ -38,12 +38,12 @@ tagDiasUp <- max(italia$date) - tagFin$date
 tagMaxMin <- tagFin$casosMM7 - tagIn$casosMM7
 tagVar <- tagMaxMin / as.integer(tagDias)
 
-italia$ctrl1 <- ifelse(italia$date <= tagFin$date, italia$casosMM7, 1)
+ctrl1 <- ifelse(italia$date <= tagFin$date, italia$casosMM7, 1)
 
 j <- tagMaxMin
 i <- 1
 ctrl2 <- c()
-while (i <= as.integer(tagDiasUp)+1) {
+while (i <= as.integer(tagDiasUp)) {
   if(j >= tagVar){
   ctrl2[i] = j - tagVar 
   j = j - tagVar}
@@ -54,7 +54,15 @@ while (i <= as.integer(tagDiasUp)+1) {
 i = i + 1
 }
 
-italia$ctrl <- ifelse(italia$ctrl1 != 1, italia$ctrl1, as.integer(ctrl2))
+i = which(ctrl1==max(ctrl1)) + 1
+j = 1
+while(i <= length(ctrl1)) {
+  ctrl1[i] = ctrl2[j]
+  i = i + 1
+  j = j +1
+}
+
+italia$ctrl <- ctrl1
 ```
 
 Row
@@ -68,13 +76,13 @@ plotly::plot_ly(data = italia) %>%
   add_trace(
     x = ~date,
     y = ~casosMM7,
-    type = 'bar', mode = 'lines',
+    type = 'scatter', mode = 'lines',
     name = "Casos"
    )  %>%
   add_trace(
     x = ~date,
     y = ~ctrl,
-    type = 'bar', mode = 'lines',
+    type = 'scatter', mode = 'lines',
     name = "Casos - sem novas ondas"
    )  %>%
   plotly::layout(
@@ -183,13 +191,13 @@ plotly::plot_ly(data = uk) %>%
   add_trace(
     x = ~date,
     y = ~casosMM7,
-    type = 'bar', mode = 'lines',
+    type = 'scatter', mode = 'lines',
     name = "Casos"
    )   %>%
   add_trace(
     x = ~date,
     y = ~ctrl,
-    type = 'bar', mode = 'lines',
+    type = 'scatter', mode = 'lines',
     name = "Casos - sem novas ondas"
    ) %>%
   plotly::layout(
@@ -298,13 +306,13 @@ plotly::plot_ly(data = espanha) %>%
   add_trace(
     x = ~date,
     y = ~casosMM7,
-    type = 'bar', mode = 'lines',
+    type = 'scatter', mode = 'lines',
     name = "Casos"
    )   %>%
   add_trace(
     x = ~date,
     y = ~ctrl,
-    type = 'bar', mode = 'lines',
+    type = 'scatter', mode = 'lines',
     name = "Casos - sem novas ondas"
    ) %>%
   plotly::layout(
@@ -413,13 +421,13 @@ plotly::plot_ly(data = belgica) %>%
   add_trace(
     x = ~date,
     y = ~casosMM7,
-    type = 'bar', mode = 'lines',
+    type = 'scatter', mode = 'lines',
     name = "Casos"
    )   %>%
   add_trace(
     x = ~date,
     y = ~ctrl,
-    type = 'bar', mode = 'lines',
+    type = 'scatter', mode = 'lines',
     name = "Casos - sem novas ondas"
    ) %>%
   plotly::layout(
